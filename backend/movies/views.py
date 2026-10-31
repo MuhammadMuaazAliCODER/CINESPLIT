@@ -136,7 +136,7 @@ class AdminMovieDetailView(APIView):
             return _error("invalid_movie_id", "Movie id is invalid.", status.HTTP_400_BAD_REQUEST)
         return Response(AdminMovieSerializer(movie).data)
 
-    @extend_schema(operation_id="admin_movies_delete", summary="Delete a movie by confirming its slug", request=MovieDeleteSerializer, responses={204: None, 400: ErrorSerializer, 404: ErrorSerializer})
+    @extend_schema(operation_id="admin_movies_delete", summary="Delete a movie by confirming its slug", request=MovieDeleteSerializer, responses={204: None, 400: ErrorSerializer, 404: ErrorSerializer, 409: ErrorSerializer})
     def delete(self, request, movie_id):
         try:
             parse_movie_id(movie_id)

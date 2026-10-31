@@ -11,12 +11,12 @@ from rest_framework.test import APIRequestFactory, force_authenticate
 from .mongo import ensure_chapter_indexes, ensure_indexes
 from .serializers import ChapterReorderSerializer, ChapterWriteSerializer, MovieListQuerySerializer, MovieWriteSerializer
 from .services import (
-    InvalidMovieId, MovieConflict, MovieHasChapters, create_movie, delete_movie, get_movie_by_id,
+    InvalidMovieId, MovieConflict, MovieHasChapters, MovieNotFound, create_movie, delete_movie, get_movie_by_id,
     list_movies, update_movie,
 )
 from .views import AdminMovieCollectionView, MovieListView, PublicMovieDetailView
 from .chapter_views import AdminChapterCollectionView, PublicChapterListView, PublicChapterDetailView
-from .chapter_services import list_public_chapters
+from .chapter_services import ChapterConflict, ChapterNotFound, create_chapter, delete_chapter, list_public_chapters, reorder_chapters, update_chapter
 
 
 def valid_movie(**overrides):
@@ -194,6 +194,18 @@ class MovieMongoServiceTests(SimpleTestCase):
 
 
 class ChapterMongoServiceTests(SimpleTestCase):
+    def _transaction_setup(self, movie_id, get_database, get_movies, get_chapters):
+        movies = MagicMock()
+        movies.find_one.return_value = {"_id": movie_id}
+        movies.update_one.return_value.matched_count = 1
+        chapters = MagicMock()
+        session = MagicMock()
+        session.with_transaction.side_effect = lambda callback: callback(session)
+        get_database.return_value.client.start_session.return_value.__enter__.return_value = session
+        get_movies.return_value = movies
+        get_chapters.return_value = chapters
+        return movies, chapters, session
+
     def test_chapter_indexes_enforce_unique_movie_number_and_slug(self):
         collection = MagicMock()
         ensure_chapter_indexes(collection)
@@ -223,6 +235,75 @@ class ChapterMongoServiceTests(SimpleTestCase):
             get_movies.return_value.find_one.return_value = None
             self.assertEqual(list_public_chapters("draft-film"), [])
             get_chapters.assert_not_called()
+
+    @patch("movies.chapter_services.get_database")
+    @patch("movies.chapter_services.get_chapter_collection")
+    @patch("movies.chapter_services.get_movie_collection")
+    def test_create_appends_chapter_and_maps_duplicate_number_or_slug_to_conflict(self, get_movies, get_chapters, get_database):
+        movie_id, chapter_id = ObjectId(), ObjectId()
+        _, chapters, _ = self._transaction_setup(movie_id, get_database, get_movies, get_chapters)
+        chapters.find.return_value.sort.return_value = []
+        chapters.find_one.return_value = None
+        chapters.insert_one.return_value.inserted_id = chapter_id
+        created = create_chapter(str(movie_id), {"title": "Arrival", "duration": 42, "status": "draft", "is_free": False}, "admin")
+        inserted = chapters.insert_one.call_args.args[0]
+        self.assertEqual(inserted["chapter_number"], 1)
+        self.assertEqual(inserted["slug"], "arrival")
+        self.assertEqual(created["id"], str(chapter_id))
+        with self.assertRaises(ChapterConflict):
+            create_chapter(str(movie_id), {"title": "Arrival", "slug": "arrival", "chapter_number": 2, "duration": 42}, "admin")
+        chapters.find_one.return_value = {"_id": ObjectId()}
+        with self.assertRaises(ChapterConflict):
+            create_chapter(str(movie_id), {"title": "Arrival", "slug": "arrival", "duration": 42}, "admin")
+
+    @patch("movies.chapter_services.get_database")
+    @patch("movies.chapter_services.get_chapter_collection")
+    @patch("movies.chapter_services.get_movie_collection")
+    def test_invalid_movie_is_rejected_before_chapter_write(self, get_movies, get_chapters, get_database):
+        movie_id = ObjectId()
+        self._transaction_setup(movie_id, get_database, get_movies, get_chapters)
+        get_movies.return_value.find_one.return_value = None
+        with self.assertRaises(MovieNotFound):
+            create_chapter(str(movie_id), {"title": "Arrival", "duration": 42}, "admin")
+        get_chapters.return_value.insert_one.assert_not_called()
+
+    @patch("movies.chapter_services.get_database")
+    @patch("movies.chapter_services.get_chapter_collection")
+    @patch("movies.chapter_services.get_movie_collection")
+    def test_reorder_requires_the_complete_movie_sequence_and_updates_order_atomically(self, get_movies, get_chapters, get_database):
+        movie_id, first, second = ObjectId(), ObjectId(), ObjectId()
+        _, chapters, _ = self._transaction_setup(movie_id, get_database, get_movies, get_chapters)
+        documents = [{"_id": first, "movie_id": movie_id, "chapter_number": 1, "title": "One", "slug": "one"},
+                     {"_id": second, "movie_id": movie_id, "chapter_number": 2, "title": "Two", "slug": "two"}]
+        chapters.find.return_value.sort.return_value = documents
+        with self.assertRaises(ChapterConflict):
+            reorder_chapters(str(movie_id), [str(first)])
+        chapters.update_many.assert_not_called()
+        chapters.find_one.side_effect = lambda query, **kwargs: next((doc for doc in documents if doc["_id"] == query["_id"]), None)
+        result = reorder_chapters(str(movie_id), [str(second), str(first)])
+        self.assertEqual([item["id"] for item in result], [str(second), str(first)])
+        updates = [call.args[1]["$set"]["chapter_number"] for call in chapters.update_one.call_args_list]
+        self.assertEqual(updates[-2:], [1, 2])
+
+    @patch("movies.chapter_services.get_database")
+    @patch("movies.chapter_services.get_chapter_collection")
+    @patch("movies.chapter_services.get_movie_collection")
+    def test_update_and_delete_require_chapter_movie_relationship_and_delete_reports_renumbering(self, get_movies, get_chapters, get_database):
+        movie_id, chapter_id = ObjectId(), ObjectId()
+        _, chapters, _ = self._transaction_setup(movie_id, get_database, get_movies, get_chapters)
+        existing = {"_id": chapter_id, "movie_id": movie_id, "title": "Arrival", "slug": "arrival", "chapter_number": 1}
+        chapters.find_one.return_value = existing
+        chapters.update_one.return_value = MagicMock()
+        chapters.find_one.side_effect = [existing, {**existing, "status": "published"}]
+        updated = update_chapter(str(movie_id), str(chapter_id), {"status": "published"})
+        self.assertEqual(updated["status"], "published")
+        chapters.find_one.side_effect = [None]
+        with self.assertRaises(ChapterNotFound):
+            delete_chapter(str(movie_id), str(chapter_id))
+        chapters.find_one.side_effect = [existing]
+        chapters.find.return_value.sort.return_value = []
+        result = delete_chapter(str(movie_id), str(chapter_id))
+        self.assertEqual(result, {"deleted": True, "renumbered": True})
 
 
 class MovieViewAuthorizationTests(SimpleTestCase):

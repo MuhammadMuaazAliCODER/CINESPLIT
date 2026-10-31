@@ -127,6 +127,9 @@ class AdminChapterDetailView(APIView):
         serializer = ChapterWriteSerializer(data=request.data, partial=partial)
         if not serializer.is_valid():
             return _error("validation_error", "Chapter data is invalid.", status.HTTP_400_BAD_REQUEST, serializer.errors)
+        if "chapter_number" in serializer.validated_data:
+            return _error("validation_error", "Use the reorder endpoint to change chapter numbers.", status.HTTP_400_BAD_REQUEST,
+                          {"chapter_number": ["Chapter numbers can only be changed by reordering the full chapter list."]})
         try:
             chapter = update_chapter(movie_id, chapter_id, serializer.validated_data)
         except ChapterNotFound:

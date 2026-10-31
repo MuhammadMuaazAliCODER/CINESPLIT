@@ -16,6 +16,8 @@ export default function MovieDetailPage() {
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
+    setChapters([])
+    setChaptersError('')
     getMovie(slug, { signal: controller.signal })
       .then(async ({ data }) => {
         setMovie(data)
