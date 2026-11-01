@@ -9,6 +9,7 @@ import MovieGrid from "../components/MovieGrid.jsx";
 import { getMovieGenres, getMovies } from "../services/movies.js";
 import DiscoveryShelves from "../components/DiscoveryShelves.jsx";
 import ContinueWatching from "../components/ContinueWatching.jsx";
+import SeoHead from "../components/SeoHead.jsx";
 
 const initialPage = { results: [], page: 1, page_size: 20, total: 0, pages: 0 };
 
@@ -77,6 +78,7 @@ export default function MovieCatalogPage() {
 
   return (
     <section className="catalog-page" aria-labelledby="catalog-title">
+      <SeoHead title="Films to discover | CineSplit" description="Explore published films on CineSplit. Search films by genre, year, language, and rating." path="/" />
       <div className="catalog-hero">
         <div>
           <span className="eyebrow">THE CINESPLIT COLLECTION</span>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">CineSplit</title>
+  <desc id="desc">Films and series to follow, one chapter at a time.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#24211d"/><stop offset=".58" stop-color="#111112"/><stop offset="1" stop-color="#070708"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".12" cy=".1" r=".9">
+      <stop stop-color="#cfaa72" stop-opacity=".28"/><stop offset="1" stop-color="#cfaa72" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#background)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect x="66" y="66" width="1068" height="498" rx="28" fill="none" stroke="#ffffff" stroke-opacity=".12" stroke-width="2"/>
+  <path d="M164 206v218l176-109z" fill="#cfaa72"/>
+  <text x="385" y="315" fill="#f2f0ed" font-family="Arial,sans-serif" font-size="94" font-weight="700" letter-spacing="8">CINE<tspan fill="#cfaa72">SPLIT</tspan></text>
+  <text x="390" y="384" fill="#bcb7af" font-family="Arial,sans-serif" font-size="28" letter-spacing="2">FILMS AND SERIES TO FOLLOW</text>
+</svg>

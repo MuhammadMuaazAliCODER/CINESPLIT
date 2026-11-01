@@ -7,6 +7,7 @@ import { getPublicChapters } from '../services/chapters.js'
 import VideoPlayer from '../components/VideoPlayer.jsx'
 import FavoriteButton from '../components/FavoriteButton.jsx'
 import ReviewSection from '../components/ReviewSection.jsx'
+import SeoHead from '../components/SeoHead.jsx'
 
 export default function MovieDetailPage() {
   const { slug } = useParams()
@@ -32,15 +33,39 @@ export default function MovieDetailPage() {
     return () => controller.abort()
   }, [slug])
 
-  if (loading) return <section className="movie-detail-state" role="status">Loading film…</section>
-  if (error || !movie) return <section className="movie-detail-state" role="alert"><p>{error || 'This film could not be found.'}</p><Link className="quiet-button" to="/">Back to the collection</Link></section>
+  if (loading) return <><SeoHead title="Film details | CineSplit" noIndex/><section className="movie-detail-state" role="status">Loading film…</section></>
+  if (error || !movie) return <><SeoHead title="Film not found | CineSplit" noIndex/><section className="movie-detail-state" role="alert"><p>{error || 'This film could not be found.'}</p><Link className="quiet-button" to="/">Back to the collection</Link></section></>
+
+  const seoDescription = movie.short_description || movie.description || `Explore ${movie.title} on CineSplit.`
+  const movieSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Movie',
+    name: movie.title,
+    description: seoDescription,
+    ...(movie.poster_url ? { image: movie.poster_url } : {}),
+    ...(movie.genres?.length ? { genre: movie.genres } : {}),
+    ...(movie.duration_minutes ? { duration: `PT${movie.duration_minutes}M` } : {}),
+    ...(movie.original_language ? { inLanguage: movie.original_language } : {}),
+    ...(movie.director ? { director: { '@type': 'Person', name: movie.director } } : {}),
+    ...(movie.cast?.length ? { actor: movie.cast.map((name) => ({ '@type': 'Person', name })) } : {}),
+    ...(movie.content_rating ? { contentRating: movie.content_rating } : {}),
+  }
+  const siteUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || '').replace(/\/+$/, '')
+  const breadcrumbSchema = siteUrl ? {
+    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Films', item: `${siteUrl}/` },
+      { '@type': 'ListItem', position: 2, name: movie.title, item: `${siteUrl}/movies/${movie.slug}/` },
+    ],
+  } : null
 
   return (
     <article className="movie-detail-page">
+      <SeoHead title={`${movie.title} (${movie.release_year}) | CineSplit`} description={seoDescription} path={`/movies/${movie.slug}/`} image={movie.poster_url} type="video.movie" schema={[movieSchema, breadcrumbSchema]} noIndex={seoDescription.trim().length < 40} />
       <Link to="/" className="back-link"><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Back to collection</Link>
       <div className="movie-detail-art">
         {movie.backdrop_url && <img className="movie-detail-backdrop" src={movie.backdrop_url} alt="" aria-hidden="true" />}
-        {movie.poster_url ? <img className="movie-detail-poster" src={movie.poster_url} alt={`${movie.title} poster`} /> : <div className="movie-detail-poster detail-poster-placeholder"><FontAwesomeIcon icon={faFilm} aria-hidden="true" /></div>}
+        {movie.poster_url ? <img className="movie-detail-poster" src={movie.poster_url} alt={`${movie.title} poster`} width="190" height="266" loading="eager" fetchPriority="high" /> : <div className="movie-detail-poster detail-poster-placeholder"><FontAwesomeIcon icon={faFilm} aria-hidden="true" /></div>}
         <div className="movie-detail-heading"><span className="eyebrow">CINESPLIT ORIGINAL COLLECTION</span><h1>{movie.title}</h1><p>{movie.short_description}</p><div className="detail-facts"><span>{movie.release_year}</span><span>{movie.content_rating}</span><span><FontAwesomeIcon icon={faClock} aria-hidden="true" /> {movie.duration_minutes} min</span><span><FontAwesomeIcon icon={faEarthAmericas} aria-hidden="true" /> {movie.original_language}</span></div></div>
       </div>
       <FavoriteButton contentType="movie" contentId={movie.id}/>

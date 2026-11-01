@@ -6,6 +6,7 @@ import { getSeriesDetail, getSeriesSeasons, getSeasonEpisodes, getSeriesSpecials
 import { createRequestGuard } from '../features/requestGuard.js'
 import FavoriteButton from '../components/FavoriteButton.jsx'
 import ReviewSection from '../components/ReviewSection.jsx'
+import SeoHead from '../components/SeoHead.jsx'
 
 export default function SeriesDetailPage() {
   const { slug } = useParams()
@@ -81,14 +82,38 @@ export default function SeriesDetailPage() {
     return () => { controller.abort(); episodeRequest.current.invalidate() }
   }, [slug, season])
 
-  if (loading) return <p className="movie-state" role="status">Loading series…</p>
-  if (error || !series) return <section className="series-error"><p className="movie-state" role="alert">{error || 'Series not found.'}</p><Link className="quiet-button" to="/series"><FontAwesomeIcon icon={faArrowLeft}/> All series</Link></section>
+  if (loading) return <><SeoHead title="Series details | CineSplit" noIndex/><p className="movie-state" role="status">Loading series…</p></>
+  if (error || !series) return <><SeoHead title="Series not found | CineSplit" noIndex/><section className="series-error"><p className="movie-state" role="alert">{error || 'Series not found.'}</p><Link className="quiet-button" to="/series"><FontAwesomeIcon icon={faArrowLeft}/> All series</Link></section></>
+
+  const seoDescription = series.short_description || series.description || `Explore ${series.title} on CineSplit.`
+  const seriesSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'TVSeries',
+    name: series.title,
+    description: seoDescription,
+    ...(series.poster_url ? { image: series.poster_url } : {}),
+    ...(series.genres?.length ? { genre: series.genres } : {}),
+    ...(series.release_year ? { startDate: String(series.release_year) } : {}),
+    ...(series.language ? { inLanguage: series.language } : {}),
+    ...(series.cast?.length ? { actor: series.cast.map((name) => ({ '@type': 'Person', name })) } : {}),
+    ...(series.director ? { director: { '@type': 'Person', name: series.director } } : {}),
+    ...(seasons.length ? { numberOfSeasons: seasons.length, containsSeason: seasons.map((item) => ({ '@type': 'TVSeason', name: item.title || `Season ${item.season_number}`, seasonNumber: item.season_number })) } : {}),
+  }
+  const siteUrl = (import.meta.env.VITE_PUBLIC_SITE_URL || '').replace(/\/+$/, '')
+  const breadcrumbSchema = siteUrl ? {
+    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Series', item: `${siteUrl}/series/` },
+      { '@type': 'ListItem', position: 2, name: series.title, item: `${siteUrl}/series/${series.slug}/` },
+    ],
+  } : null
 
   return (
     <article className="series-detail">
+      <SeoHead title={`${series.title} (${series.release_year}) | CineSplit`} description={seoDescription} path={`/series/${series.slug}/`} image={series.poster_url} schema={[seriesSchema, breadcrumbSchema]} noIndex={seoDescription.trim().length < 40} />
       <Link className="quiet-button" to="/series"><FontAwesomeIcon icon={faArrowLeft}/> All series</Link>
       <section className="series-detail-hero" style={series.backdrop_url ? { backgroundImage: `linear-gradient(90deg,#101011 0%,#101011dd 48%,#10101155),url("${series.backdrop_url}")` } : {}}>
-        <div className="series-detail-poster">{series.poster_url ? <img src={series.poster_url} alt={`${series.title} poster`}/> : <span>{series.title}</span>}</div>
+        <div className="series-detail-poster">{series.poster_url ? <img src={series.poster_url} alt={`${series.title} poster`} width="190" height="266" loading="eager" fetchPriority="high"/> : <span>{series.title}</span>}</div>
         <div className="series-detail-copy"><span className="eyebrow">{series.release_year} · {series.content_rating} · {series.language}</span><h1>{series.title}</h1><p className="series-genres">{series.genres?.join(' · ')}</p><p>{series.description || series.short_description}</p><dl className="series-facts"><div><dt>Director</dt><dd>{series.director || '—'}</dd></div><div><dt>Cast</dt><dd>{series.cast?.join(', ') || '—'}</dd></div><div><dt>Production</dt><dd>{series.production_company || '—'}</dd></div></dl></div>
       </section>
       <FavoriteButton contentType="series" contentId={series.id}/>

@@ -3,12 +3,12 @@ import { faClock, faStar } from '@fortawesome/free-solid-svg-icons'
 import { Link } from 'react-router-dom'
 import FavoriteButton from './FavoriteButton.jsx'
 
-export default function MovieCard({ movie }) {
+export default function MovieCard({ movie, priority = false }) {
   return (
     <article className="movie-card movie-card-with-favorite">
       <Link className="movie-card-link" to={`/movies/${encodeURIComponent(movie.slug)}`} aria-label={`View ${movie.title}`}>
         <div className="movie-poster">
-          {movie.poster_url ? <img src={movie.poster_url} alt={`${movie.title} poster`} loading="lazy" /> : <div className="poster-placeholder" aria-hidden="true"><span>{movie.title}</span></div>}
+          {movie.poster_url ? <img src={movie.poster_url} alt={`${movie.title} poster`} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : 'auto'} width="320" height="448" /> : <div className="poster-placeholder" aria-hidden="true"><span>{movie.title}</span></div>}
           {movie.is_featured && <span className="featured-badge"><FontAwesomeIcon icon={faStar} aria-hidden="true" /> Featured</span>}
           <span className="rating-badge">{movie.content_rating}</span>
         </div>

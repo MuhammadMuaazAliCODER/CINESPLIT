@@ -1,29 +1,32 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
-import LoginPage from './pages/LoginPage.jsx'
-import ProfilePage from './pages/ProfilePage.jsx'
-import RegisterPage from './pages/RegisterPage.jsx'
 import AppLayout from './layouts/AppLayout.jsx'
-import VerifyEmailPage from './pages/VerifyEmailPage.jsx'
-import MovieCatalogPage from './pages/MovieCatalogPage.jsx'
-import MovieDetailPage from './pages/MovieDetailPage.jsx'
-import AdminMoviesPage from './pages/AdminMoviesPage.jsx'
-import StatusPage from './pages/StatusPage.jsx'
-import SeriesCatalogPage from './pages/SeriesCatalogPage.jsx'
-import SeriesDetailPage from './pages/SeriesDetailPage.jsx'
-import SeriesEpisodePage from './pages/SeriesEpisodePage.jsx'
-import AdminSeriesPage from './pages/AdminSeriesPage.jsx'
-import ChapterDetailPage from './pages/ChapterDetailPage.jsx'
-import FavoritesPage from './pages/FavoritesPage.jsx'
-import WatchHistoryPage from './pages/WatchHistoryPage.jsx'
-import DiscoverPage from './pages/DiscoverPage.jsx'
-import AdminDashboardPage from './pages/AdminDashboardPage.jsx'
-import AdminMediaPage from './pages/AdminMediaPage.jsx'
+
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'))
+const VerifyEmailPage = lazy(() => import('./pages/VerifyEmailPage.jsx'))
+const MovieCatalogPage = lazy(() => import('./pages/MovieCatalogPage.jsx'))
+const MovieDetailPage = lazy(() => import('./pages/MovieDetailPage.jsx'))
+const AdminMoviesPage = lazy(() => import('./pages/AdminMoviesPage.jsx'))
+const StatusPage = lazy(() => import('./pages/StatusPage.jsx'))
+const SeriesCatalogPage = lazy(() => import('./pages/SeriesCatalogPage.jsx'))
+const SeriesDetailPage = lazy(() => import('./pages/SeriesDetailPage.jsx'))
+const SeriesEpisodePage = lazy(() => import('./pages/SeriesEpisodePage.jsx'))
+const AdminSeriesPage = lazy(() => import('./pages/AdminSeriesPage.jsx'))
+const ChapterDetailPage = lazy(() => import('./pages/ChapterDetailPage.jsx'))
+const FavoritesPage = lazy(() => import('./pages/FavoritesPage.jsx'))
+const WatchHistoryPage = lazy(() => import('./pages/WatchHistoryPage.jsx'))
+const DiscoverPage = lazy(() => import('./pages/DiscoverPage.jsx'))
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage.jsx'))
+const AdminMediaPage = lazy(() => import('./pages/AdminMediaPage.jsx'))
 
 export default function App() {
   return (
-    <Routes>
-      <Route element={<AppLayout />}>
+    <Suspense fallback={<p className="movie-state" role="status">Loading CineSplit…</p>}>
+      <Routes>
+        <Route element={<AppLayout />}>
         <Route index element={<MovieCatalogPage />} />
         <Route path="series" element={<SeriesCatalogPage />} />
         <Route path="series/:slug" element={<SeriesDetailPage />} />
@@ -47,7 +50,8 @@ export default function App() {
           <Route path="admin/media" element={<AdminMediaPage />} />
         </Route>
         <Route path="*" element={<StatusPage />} />
-      </Route>
-    </Routes>
+        </Route>
+      </Routes>
+    </Suspense>
   )
 }

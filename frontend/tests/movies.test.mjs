@@ -102,10 +102,11 @@ test('admin form validates required movie data and admin route requires backend 
   assert.match(protectedRoute, /user\.role !== requiredRole/)
 })
 
-test('application route components are imported so React can render the route tree', async () => {
+test('application route components are lazy-loaded so the route tree can split page bundles', async () => {
   const app = await source('../src/App.jsx')
-  assert.match(app, /import StatusPage from '\.\/pages\/StatusPage\.jsx'/)
+  assert.match(app, /const StatusPage = lazy\(\(\) => import\('\.\/pages\/StatusPage\.jsx'\)\)/)
   assert.match(app, /element=\{<StatusPage \/>\}/)
+  assert.match(app, /const MovieCatalogPage = lazy\(\(\) => import\('\.\/pages\/MovieCatalogPage\.jsx'\)\)/)
   assert.match(app, /element=\{<MovieCatalogPage \/>\}/)
 })
 

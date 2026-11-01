@@ -3,6 +3,7 @@ import { faFilm, faMagnifyingGlass, faRightFromBracket, faUser } from '@fortawes
 import { Link, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
+import RouteIndexability from '../components/RouteIndexability.jsx'
 
 export default function AppLayout() {
   const { user, loading, signOut } = useAuth()
@@ -11,6 +12,7 @@ export default function AppLayout() {
   function search(event) { event.preventDefault(); const value = query.trim(); navigate(value ? `/discover?q=${encodeURIComponent(value)}` : '/discover') }
   return (
     <div className="site-shell">
+      <RouteIndexability />
       <header className="site-header">
         <Link className="brand" to="/" aria-label="CineSplit home"><FontAwesomeIcon icon={faFilm} aria-hidden="true" /><span>CINE<span className="brand-accent">SPLIT</span></span></Link>
         <nav aria-label="Main navigation">

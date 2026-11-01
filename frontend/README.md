@@ -29,6 +29,8 @@ VITE_API_BASE_URL=http://localhost:8000
 
 Set this to the backend origin only. `src/services/api.js` appends `/api`, sends cookies and CSRF headers, attaches the in-memory JWT access token, and coalesces concurrent token-refresh attempts. Do not add credentials to frontend environment variables: Vite exposes `VITE_*` values to browser code. Restart Vite after changing `.env`.
 
+For production SEO builds, set `VITE_PUBLIC_SITE_URL` to the real public frontend origin (scheme and host only, such as `https://www.your-domain.example`). `npm run build` prerenders published public pages and emits `dist/sitemap.xml` plus `dist/robots.txt` when that origin and a reachable public API are available. Without a configured origin the build remains usable, emits no sitemap/canonical domain, and leaves the generic HTML `noindex` to avoid publishing localhost SEO metadata.
+
 The development server binds to `127.0.0.1:5174` (strict port).
 
 ## Routes

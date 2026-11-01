@@ -98,6 +98,8 @@ npm run dev
 
 `frontend/.env` uses `VITE_API_BASE_URL=http://localhost:8000` (backend origin only; the API client adds `/api`). Vite serves the app at `http://127.0.0.1:5174/`. Restart Vite after changing its `.env`.
 
+For production SEO, set `VITE_PUBLIC_SITE_URL` to the public frontend origin (for example, `https://www.your-domain.example`, without a path) in the frontend build environment. The build prerenders published public pages and writes `dist/sitemap.xml` and `dist/robots.txt` only when this real origin is configured and the public backend API is reachable. It intentionally does not guess a production domain or publish localhost canonical URLs.
+
 ## Media uploads and playback
 
 Sign in as an administrator, open **Studio → Movies** or **Studio → Series**, create or select content, and use its media controls to upload a poster or video. Movie chapters and series episodes have their own media controls. Content must be published, along with its required parent content, to be publicly playable.
