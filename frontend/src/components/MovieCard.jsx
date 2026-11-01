@@ -1,10 +1,11 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faClock, faStar } from '@fortawesome/free-solid-svg-icons'
 import { Link } from 'react-router-dom'
+import FavoriteButton from './FavoriteButton.jsx'
 
 export default function MovieCard({ movie }) {
   return (
-    <article className="movie-card">
+    <article className="movie-card movie-card-with-favorite">
       <Link className="movie-card-link" to={`/movies/${encodeURIComponent(movie.slug)}`} aria-label={`View ${movie.title}`}>
         <div className="movie-poster">
           {movie.poster_url ? <img src={movie.poster_url} alt={`${movie.title} poster`} loading="lazy" /> : <div className="poster-placeholder" aria-hidden="true"><span>{movie.title}</span></div>}
@@ -20,6 +21,7 @@ export default function MovieCard({ movie }) {
           </div>
         </div>
       </Link>
+      <FavoriteButton contentType="movie" contentId={movie.id} compact/>
     </article>
   )
 }

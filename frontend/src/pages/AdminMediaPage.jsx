@@ -1,0 +1,12 @@
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { getMediaLibrary } from '../services/engagement.js'
+
+export default function AdminMediaPage() {
+  const [data, setData] = useState({ results: [], page: 1, pages: 0, total: 0 })
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  useEffect(() => { let active = true; setLoading(true); getMediaLibrary({ page, page_size: 20 }).then(({ data: result }) => { if (active) setData(result) }).catch((e) => { if (active) setError(e.response?.data?.detail || 'Media library could not be loaded.') }).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [page])
+  return <section className="library-page"><span className="eyebrow">CINESPLIT · STUDIO</span><h1>Media library</h1><p>{data.total} stored asset associations</p>{error && <p className="form-alert" role="alert">{error}</p>}{loading ? <p role="status" className="movie-state">Loading media…</p> : !data.results.length ? <p className="movie-state">No uploaded media yet. Upload assets from the movie, chapter, or episode editor.</p> : <div className="media-library-list">{data.results.map((item) => <article className={`media-library-row ${item.cleanup_pending ? 'media-cleanup-pending' : ''}`} key={item.id}><div>{item.secure_url && item.resource_type === 'image' ? <img src={item.secure_url} alt="Uploaded poster" loading="lazy"/> : item.secure_url && <video src={item.secure_url} preload="none" muted/>}</div><section><span className="eyebrow">{item.cleanup_pending ? 'CLEANUP PENDING · ' : ''}{item.content_type} · {item.role} · {item.format || item.resource_type}</span><strong>{item.public_id}</strong><small>{item.duration ? `${Math.round(item.duration)} sec · ` : ''}{new Date(item.uploaded_at).toLocaleString()}{item.cleanup_pending ? ` · ${item.reason}` : ''}</small>{!item.cleanup_pending && <Link to={item.content_type === 'movie' ? '/admin/movies' : item.content_type === 'episode' ? '/admin/series' : item.content_type === 'chapter' ? '/admin/movies' : '/admin/series'}>Open content studio</Link>}</section></article>)}</div>}{data.pages > 1 && <nav className="movie-pagination"><button className="quiet-button" disabled={loading || page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button><span>Page {data.page} of {data.pages}</span><button className="quiet-button" disabled={loading || page >= data.pages} onClick={() => setPage((value) => value + 1)}>Next</button></nav>}</section>
+}

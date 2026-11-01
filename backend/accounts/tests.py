@@ -9,6 +9,7 @@ from rest_framework.test import APIRequestFactory
 
 from . import email_service, security, services, tokens
 from .mongo import ensure_indexes
+from .management.commands.create_admin import Command as CreateAdminCommand
 from .serializers import EmailCodeSerializer, RegistrationSerializer
 from .throttles import MongoRateThrottle
 from .views import LoginView, RefreshView, RegisterView
@@ -144,6 +145,62 @@ class MongoConfigurationTests(SimpleTestCase):
         query = db.auth_rate_limits.find_one_and_update.call_args.args[0]
         self.assertEqual(len(query["_id"]), 64)
         self.assertNotIn("192.0.2.10", query["_id"])
+
+
+class CreateAdminCommandTests(SimpleTestCase):
+    @patch("accounts.management.commands.create_admin.get_auth_database")
+    @patch("accounts.management.commands.create_admin.getpass.getpass", side_effect=[
+        "StrongPassword!27", "StrongPassword!27",
+    ])
+    @patch("builtins.input", side_effect=[" Cine.Admin ", " ADMIN@EXAMPLE.COM "])
+    def test_creates_verified_admin_with_normalized_email_and_hashed_password(
+        self, _input, _password, get_db,
+    ):
+        from io import StringIO
+
+        db = MagicMock()
+        get_db.return_value = db
+        command = CreateAdminCommand(stdout=StringIO())
+
+        command.handle()
+
+        admin = db.users.insert_one.call_args.args[0]
+        self.assertEqual(admin["username"], "cine.admin")
+        self.assertEqual(admin["email"], "admin@example.com")
+        self.assertEqual(admin["role"], "admin")
+        self.assertTrue(admin["is_active"])
+        self.assertTrue(admin["is_verified"])
+        self.assertTrue(security.verify_password("StrongPassword!27", admin["password_hash"]))
+        self.assertNotEqual(admin["password_hash"], "StrongPassword!27")
+
+    @patch("accounts.management.commands.create_admin.get_auth_database")
+    @patch("accounts.management.commands.create_admin.getpass.getpass", side_effect=[
+        "weak", "weak",
+    ])
+    @patch("builtins.input", side_effect=["cineadmin", "admin@example.com"])
+    def test_rejects_weak_password_before_database_access(self, _input, _password, get_db):
+        from django.core.management.base import CommandError
+
+        command = CreateAdminCommand()
+        with self.assertRaises(CommandError):
+            command.handle()
+        get_db.assert_not_called()
+
+    @patch("accounts.management.commands.create_admin.get_auth_database")
+    @patch("accounts.management.commands.create_admin.getpass.getpass", side_effect=[
+        "StrongPassword!27", "StrongPassword!27",
+    ])
+    @patch("builtins.input", side_effect=["cineadmin", "admin@example.com"])
+    def test_reports_duplicate_account(self, _input, _password, get_db):
+        from django.core.management.base import CommandError
+        from pymongo.errors import DuplicateKeyError
+
+        db = MagicMock()
+        db.users.insert_one.side_effect = DuplicateKeyError("duplicate")
+        get_db.return_value = db
+
+        with self.assertRaisesMessage(CommandError, "already uses that username or email"):
+            CreateAdminCommand().handle()
 
 
 class OpenApiDocumentationTests(SimpleTestCase):

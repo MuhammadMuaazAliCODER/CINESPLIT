@@ -2,11 +2,20 @@ import os
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
-from dotenv import load_dotenv
-from config.cloudinary_client import configure_cloudinary
+from dotenv import dotenv_values, load_dotenv
+from config.cloudinary_client import REQUIRED_CLOUDINARY_VARIABLES, configure_cloudinary
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
+ENV_FILE = BASE_DIR / ".env"
+load_dotenv(ENV_FILE)
+# A blank process-level value otherwise masks a non-empty local .env entry,
+# because python-dotenv intentionally does not override existing variables.
+cloudinary_env = dotenv_values(ENV_FILE)
+for name in REQUIRED_CLOUDINARY_VARIABLES:
+    if not os.getenv(name, "").strip():
+        file_value = cloudinary_env.get(name)
+        if file_value and file_value.strip():
+            os.environ[name] = file_value.strip()
 configure_cloudinary()
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "")
@@ -130,6 +139,7 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "REDOC_DIST": "https://cdn.jsdelivr.net/npm/redoc@2.1.5",
+    "ENUM_NAME_OVERRIDES": {"ContentStatusEnum": [("draft", "Draft"), ("published", "Published")]},
 }
 
 CORS_ALLOW_CREDENTIALS = True

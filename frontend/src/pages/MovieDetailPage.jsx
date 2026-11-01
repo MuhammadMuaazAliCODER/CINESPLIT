@@ -4,6 +4,9 @@ import { faArrowLeft, faClock, faEarthAmericas, faFilm } from '@fortawesome/free
 import { Link, useParams } from 'react-router-dom'
 import { getMovie } from '../services/movies.js'
 import { getPublicChapters } from '../services/chapters.js'
+import VideoPlayer from '../components/VideoPlayer.jsx'
+import FavoriteButton from '../components/FavoriteButton.jsx'
+import ReviewSection from '../components/ReviewSection.jsx'
 
 export default function MovieDetailPage() {
   const { slug } = useParams()
@@ -40,6 +43,7 @@ export default function MovieDetailPage() {
         {movie.poster_url ? <img className="movie-detail-poster" src={movie.poster_url} alt={`${movie.title} poster`} /> : <div className="movie-detail-poster detail-poster-placeholder"><FontAwesomeIcon icon={faFilm} aria-hidden="true" /></div>}
         <div className="movie-detail-heading"><span className="eyebrow">CINESPLIT ORIGINAL COLLECTION</span><h1>{movie.title}</h1><p>{movie.short_description}</p><div className="detail-facts"><span>{movie.release_year}</span><span>{movie.content_rating}</span><span><FontAwesomeIcon icon={faClock} aria-hidden="true" /> {movie.duration_minutes} min</span><span><FontAwesomeIcon icon={faEarthAmericas} aria-hidden="true" /> {movie.original_language}</span></div></div>
       </div>
+      <FavoriteButton contentType="movie" contentId={movie.id}/>
       <div className="movie-detail-content">
         <section><span className="eyebrow">THE STORY</span><p>{movie.description}</p></section>
         <dl className="movie-facts">
@@ -50,9 +54,11 @@ export default function MovieDetailPage() {
           <div><dt>Country</dt><dd>{movie.country}</dd></div>
         </dl>
       </div>
+      {movie.video?.secure_url && <VideoPlayer video={movie.video} poster={movie.poster_media} title={movie.title} contentType="movie" contentId={movie.id} />}
+      <ReviewSection contentType="movie" contentId={movie.id}/>
       <section className="public-chapters" aria-labelledby="chapters-title">
         <div className="chapter-section-heading"><div><span className="eyebrow">THE STORY, IN CHAPTERS</span><h2 id="chapters-title">Chapters</h2><p>Published chapters for this film.</p></div></div>
-        {chaptersError ? <p className="movie-state" role="alert">{chaptersError}</p> : chapters.length ? <ol className="public-chapter-list">{chapters.map((chapter) => <li className="public-chapter-card" key={chapter.id}><span className="chapter-number">{chapter.chapter_number}</span><div><h3>{chapter.title}</h3>{chapter.description && <p>{chapter.description}</p>}<span className="chapter-meta">{chapter.duration} min · {chapter.is_free ? 'Available without restrictions' : 'Availability restricted'}</span></div></li>)}</ol> : <p className="movie-state">No published chapters are available yet.</p>}
+        {chaptersError ? <p className="movie-state" role="alert">{chaptersError}</p> : chapters.length ? <ol className="public-chapter-list">{chapters.map((chapter) => <li className="public-chapter-card" key={chapter.id}><Link to={`/movies/${encodeURIComponent(slug)}/chapters/${encodeURIComponent(chapter.slug)}`} className="public-chapter-link"><span className="chapter-number">{chapter.chapter_number}</span><div><h3>{chapter.title}</h3>{chapter.description && <p>{chapter.description}</p>}<span className="chapter-meta">{chapter.duration} min · {chapter.is_free ? 'Available without restrictions' : 'Availability restricted'}</span></div><span>{chapter.video ? 'Watch chapter' : 'Chapter details'}</span></Link></li>)}</ol> : <p className="movie-state">No published chapters are available yet.</p>}
       </section>
     </article>
   )

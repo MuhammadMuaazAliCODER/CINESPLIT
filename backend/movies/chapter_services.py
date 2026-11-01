@@ -163,7 +163,10 @@ def delete_chapter(movie_id, chapter_id):
         # Deletion explicitly compacts the sequence; the API response states this behavior.
         _assign_order(chapters, remaining, session)
         return {"deleted": True, "renumbered": True}
-    return _transaction(movie_oid, operation)
+    result = _transaction(movie_oid, operation)
+    from media.services import remove_content_media
+    remove_content_media("chapter", chapter_oid)
+    return result
 
 
 def reorder_chapters(movie_id, chapter_ids):

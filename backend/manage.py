@@ -8,7 +8,10 @@ def main():
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
-        raise ImportError("Django is required. Install backend/requirements.txt first.") from exc
+        raise ImportError(
+            f"Django is not installed for {sys.executable}. Run "
+            f"\"{sys.executable}\" -m pip install -r requirements.txt from backend."
+        ) from exc
     execute_from_command_line(sys.argv)
 
 

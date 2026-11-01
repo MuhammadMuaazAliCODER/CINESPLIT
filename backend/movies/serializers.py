@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from accounts.serializers import StrictSerializer
+from media.serializers import EmbeddedMediaSerializer
 
 
 CONTENT_RATINGS = ("G", "PG", "PG-13", "R", "NC-17", "TV-G", "TV-PG", "TV-14", "TV-MA", "NR")
@@ -87,6 +88,8 @@ class MovieSerializer(serializers.Serializer):
     is_featured = serializers.BooleanField()
     poster_url = serializers.CharField(allow_blank=True)
     backdrop_url = serializers.CharField(allow_blank=True)
+    video = EmbeddedMediaSerializer(required=False, allow_null=True)
+    poster_media = EmbeddedMediaSerializer(required=False, allow_null=True)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 
@@ -144,6 +147,8 @@ class ChapterSerializer(serializers.Serializer):
     duration = serializers.IntegerField()
     status = serializers.CharField()
     is_free = serializers.BooleanField()
+    video = EmbeddedMediaSerializer(required=False, allow_null=True)
+    poster_media = EmbeddedMediaSerializer(required=False, allow_null=True)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 

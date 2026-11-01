@@ -138,7 +138,11 @@ def delete_movie(movie_id, confirmation):
                 raise MovieHasChapters
             result = collection.delete_one({"_id": object_id, "slug": movie["slug"]}, session=active_session)
             return result.deleted_count == 1
-        return session.with_transaction(operation)
+        deleted = session.with_transaction(operation)
+    if deleted:
+        from media.services import remove_content_media
+        remove_content_media("movie", object_id)
+    return deleted
 
 
 def _movie_query(filters, published_only=False, featured_only=False):

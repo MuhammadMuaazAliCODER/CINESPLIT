@@ -7,6 +7,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import MovieGrid from "../components/MovieGrid.jsx";
 import { getMovieGenres, getMovies } from "../services/movies.js";
+import DiscoveryShelves from "../components/DiscoveryShelves.jsx";
+import ContinueWatching from "../components/ContinueWatching.jsx";
 
 const initialPage = { results: [], page: 1, page_size: 20, total: 0, pages: 0 };
 
@@ -84,6 +86,8 @@ export default function MovieCatalogPage() {
           </p>
         </div>
       </div>
+      <ContinueWatching />
+      <DiscoveryShelves />
 
       <form className="catalog-toolbar" onSubmit={search} role="search">
         <label className="catalog-search">

@@ -3,10 +3,17 @@ import os
 import cloudinary
 
 
+REQUIRED_CLOUDINARY_VARIABLES = (
+    "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"
+)
+
+
+def missing_cloudinary_variables():
+    return [name for name in REQUIRED_CLOUDINARY_VARIABLES if not os.getenv(name, "").strip()]
+
+
 def is_cloudinary_configured():
-    return all(os.getenv(name, "").strip() for name in (
-        "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"
-    ))
+    return not missing_cloudinary_variables()
 
 
 def configure_cloudinary():

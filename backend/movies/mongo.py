@@ -29,6 +29,7 @@ def ensure_indexes(collection):
     collection.create_index([("content_rating", ASCENDING)], name="movies_content_rating")
     collection.create_index([("status", ASCENDING)], name="movies_status")
     collection.create_index([("is_featured", ASCENDING)], name="movies_featured")
+    collection.create_index([("created_at", DESCENDING)], name="movies_created_at")
 
 
 def get_chapter_collection():

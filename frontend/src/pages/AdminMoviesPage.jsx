@@ -4,6 +4,7 @@ import { faArrowLeft, faArrowRight, faPen, faStar, faTrash } from '@fortawesome/
 import { Link } from 'react-router-dom'
 import MovieEditor from '../components/MovieEditor.jsx'
 import ChapterManagement from '../components/ChapterManagement.jsx'
+import MediaUploader from '../components/MediaUploader.jsx'
 import { createAdminMovie, deleteAdminMovie, getAdminMovies, updateAdminMovie } from '../services/movies.js'
 
 export default function AdminMoviesPage() {
@@ -79,6 +80,7 @@ export default function AdminMoviesPage() {
       {error && <p className="form-alert" role="alert">{error}</p>}
       <MovieEditor movie={editing} saving={saving} error="" onSubmit={saveMovie} onCancel={() => setEditing(null)} />
       {editing && <ChapterManagement key={editing.id} movie={editing} />}
+      {editing && <MediaUploader contentType="movie" contentId={editing.id} />}
 
       <section className="admin-movie-list" aria-labelledby="admin-list-title">
         <div className="admin-list-heading"><div><span className="eyebrow">LIBRARY</span><h2 id="admin-list-title">All films <span className="admin-count">{pageData.total}</span></h2></div><label className="admin-status-filter">Show<select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1) }}><option value="">All statuses</option><option value="draft">Drafts</option><option value="published">Published</option></select></label></div>

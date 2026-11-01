@@ -1,301 +1,153 @@
 # CineSplit
 
-CineSplit is a movie-catalog application with a React frontend and a Django REST API. The current implementation includes account registration and email verification, JWT-based authentication, public movie and chapter browsing, and administrator movie/chapter management.
+CineSplit is a streaming-style catalog and content-management platform. It combines a React/Vite frontend with a Django REST API, custom JWT authentication, and MongoDB persistence through PyMongo.
 
-## Project status
+## Features
 
-The account and movie/chapter workflows are implemented in the current source. Django also registers app packages for series, media, favorites, watch progress, reviews, and analytics, but those packages do not currently expose API routes in the root URL configuration. They should be treated as future work, not as shipped features.
+- Account registration, email verification, sign-in, profile management, and refresh-token handling.
+- Public movie and series catalogs, search/discovery, filters, featured content, and detail pages.
+- Movie chapters; series seasons, regular episodes, and specials.
+- Administrator tools for content CRUD, publication, ordering, Cloudinary media uploads, a media library, and analytics.
+- Favorites, ratings/reviews, watch history, continue watching, and saved playback position.
+- Custom video controls: seek, play/pause, 10-second skip, volume, playback speed, fullscreen, and Cloudinary delivery-size choices.
 
-The current movie chapter model stores chapter metadata (title, description, duration, status, and free/paid flag). It does not implement video hosting or playback.
+Django uses SQLite only for its internal framework components. CineSplit application records are stored in MongoDB using PyMongo.
 
-## Technology
+## Technology and layout
 
-| Area | Technologies |
-| --- | --- |
-| Frontend | React 19, Vite 6, React Router, Axios, Tailwind CSS 4, Font Awesome |
-| Backend | Python, Django 5.2, Django REST Framework |
-| Application data | MongoDB Atlas through PyMongo |
-| Authentication | bcrypt password/code hashing, custom JWT access tokens, rotating refresh tokens in HttpOnly cookies |
-| API documentation | drf-spectacular, Swagger UI, ReDoc |
-| Optional media configuration | Cloudinary |
-
-Django uses a local SQLite database only for Django framework components. CineSplit application data is stored in MongoDB through PyMongo; SQLite is not a replacement for MongoDB.
-
-## Repository layout
+- **Frontend:** React 19, React Router, Axios, Vite, Tailwind CSS, Font Awesome.
+- **Backend:** Python, Django 5.2, Django REST Framework, drf-spectacular.
+- **Data and authentication:** MongoDB/PyMongo, bcrypt, custom JWT authentication.
+- **Media:** Cloudinary Python SDK (credentials are backend-only).
 
 ```text
-.
-├── backend/
-│   ├── accounts/       Registration, verification, authentication, and profiles
-│   ├── config/         Django settings, MongoDB connection, and project URLs
-│   ├── core/           Health endpoint
-│   ├── movies/         Movie and chapter APIs and MongoDB services
-│   ├── series/         Reserved app package
-│   ├── media/          Reserved app package
-│   ├── favorites/      Reserved app package
-│   ├── watch_progress/ Reserved app package
-│   ├── reviews/        Reserved app package
-│   ├── analytics/      Reserved app package
-│   ├── .env.example    Backend environment-variable template
-│   ├── manage.py
-│   └── requirements.txt
-└── frontend/
-    ├── src/
-    │   ├── components/ Reusable UI, movie, and chapter-management components
-    │   ├── context/    Authentication context
-    │   ├── pages/      Catalog, movie details, account, profile, and admin pages
-    │   ├── services/   Shared Axios client and API service functions
-    │   └── styles/     Global Tailwind/CSS entry point
-    ├── .env.example    Frontend environment-variable template
-    ├── package.json
-    └── vite.config.js
+backend/   Django apps, API, MongoDB services/indexes, and backend configuration
+frontend/  React app, routes, API services, and styles
 ```
+
+See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md) for component-level details.
 
 ## Requirements
 
-- Python 3.10 or later
-- Node.js supported by Vite 6 (Node 18 or later recommended)
-- npm
-- A reachable MongoDB deployment (MongoDB Atlas is supported)
-- An SMTP account for sending verification email
-- Cloudinary credentials only if using Cloudinary-backed features
+- Python supported by Django 5.2 (Python 3.10+).
+- Node.js 18+ and npm.
+- A MongoDB replica set or compatible sharded deployment. MongoDB Atlas is supported.
+- SMTP credentials for email verification.
+- Cloudinary credentials to upload and deliver posters/videos.
 
-MongoDB Atlas must allow connections from the backend machine's IP address. The account used in the MongoDB URI must have access to the configured database. The account workflows use MongoDB transactions, so use an Atlas replica set or another MongoDB deployment that supports transactions.
+MongoDB must be reachable from the backend host and permit transactions for transactional content operations.
 
-## Local development setup
+## Local setup
 
-The commands below use PowerShell and assume the repository root is the current directory.
+Run these commands from the repository root in PowerShell. Copy example files only when the target `.env` does not already exist; never overwrite a file containing local settings or credentials.
 
-### 1. Configure the backend
+### Backend
 
 ```powershell
+if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
 Set-Location backend
-Copy-Item .env.example .env
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 ```
 
-Edit `backend/.env` and set at least:
+Configure `backend/.env`:
 
 | Variable | Purpose |
 | --- | --- |
-| `DJANGO_SECRET_KEY` | Django secret key. Use a long, random value. |
-| `DJANGO_DEBUG` | `true` for local development; set to `false` in production. |
-| `DJANGO_ALLOWED_HOSTS` | Comma-separated backend host names, such as `localhost,127.0.0.1`. |
-| `DJANGO_CORS_ALLOWED_ORIGINS` | Comma-separated exact frontend origins, including scheme and port. |
-| `MONGODB_URI` | MongoDB connection URI. Keep credentials private. |
-| `MONGODB_DATABASE` | Application database name; defaults to `cinesplit`. |
-| `JWT_SECRET_KEY` | A separate random secret, different from `DJANGO_SECRET_KEY`. |
-| `SMTP_HOST`, `SMTP_PORT` | SMTP server and port used for verification email. |
-| `SMTP_USERNAME`, `SMTP_PASSWORD` | SMTP credentials, if required by the provider. |
-| `SMTP_USE_TLS`, `SMTP_USE_SSL` | SMTP transport settings; do not enable both. |
-| `DEFAULT_FROM_EMAIL` | Valid sender address for verification email. |
+| `DJANGO_SECRET_KEY`, `JWT_SECRET_KEY` | Separate, private random secrets. |
+| `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` | Debug mode and permitted backend hosts. |
+| `DJANGO_CORS_ALLOWED_ORIGINS` | Exact browser origins, including scheme and port. |
+| `MONGODB_URI`, `MONGODB_DATABASE` | MongoDB connection and application database. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `SMTP_USE_SSL`, `DEFAULT_FROM_EMAIL` | Verification email delivery. Do not enable TLS and SSL together. |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Optional until media uploads are used; all three are required for Cloudinary. Keep them in backend `.env`, never frontend `.env`. |
 
-Generate two different secrets locally, then place the outputs in the corresponding `.env` fields:
+Django loads `backend/.env`. Non-empty process environment values take precedence; empty inherited Cloudinary variables fall back to non-empty values from that file. Restart Django after changing backend configuration.
 
-```powershell
-python -c "import secrets; print(secrets.token_urlsafe(64))"
-python -c "import secrets; print(secrets.token_urlsafe(64))"
-```
-
-The backend loads `backend/.env` when Django settings initialize. Missing MongoDB configuration or unreachable MongoDB causes database-backed requests to fail; authentication and movie data are not stored in the framework SQLite database.
-
-Optional settings:
-
-| Variable group | Purpose |
-| --- | --- |
-| `EMAIL_VERIFICATION_EXPIRY_MINUTES` | Verification-code lifetime; default is 10 minutes. |
-| `EMAIL_VERIFICATION_MAX_ATTEMPTS` | Maximum incorrect-code attempts; default is 5. |
-| `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS` | Resend cooldown; default is 60 seconds. |
-| `JWT_ACCESS_TOKEN_LIFETIME`, `JWT_REFRESH_TOKEN_LIFETIME` | Token lifetimes in minutes and days; defaults are 15 minutes and 7 days. |
-| `JWT_ALGORITHM`, `JWT_ISSUER`, `JWT_AUDIENCE` | JWT signing and optional claim validation configuration. |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Optional Cloudinary configuration. All three are needed for Cloudinary to be treated as configured. |
-
-### 2. Configure the frontend
-
-In another terminal:
-
-```powershell
-Set-Location frontend
-Copy-Item .env.example .env
-npm ci
-```
-
-`frontend/.env` should contain:
-
-```dotenv
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-This value is the backend origin, not an API path. The shared Axios client adds `/api`, so services call routes such as `/auth/login/` and `/movies/` under `http://localhost:8000/api/`. Keep API requests in the shared client/service layer rather than creating independent base URLs.
-
-The Vite development server binds to `127.0.0.1:5174` and uses `strictPort`, so it fails rather than silently selecting a different port if 5174 is occupied.
-
-### 3. Start the services
-
-Start Django from the `backend` directory:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-python manage.py runserver 127.0.0.1:8000
-```
-
-Start Vite from the `frontend` directory:
-
-```powershell
-npm run dev
-```
-
-Open the frontend at <http://127.0.0.1:5174/>. The backend API is at <http://localhost:8000/api/>.
-
-## Configuration and security notes
-
-- `backend/.env` and `frontend/.env` contain local configuration and are ignored by Git. Never commit secrets; use the `.env.example` files as templates.
-- Vite exposes variables prefixed with `VITE_` to browser code. Do not put credentials, private keys, or other secrets in frontend environment variables.
-- Configure CORS and `CSRF_TRUSTED_ORIGINS` with exact origins. Do not use wildcard origins with credentials. The example allows the local Vite origin on port 5174.
-- Mutating authentication operations require CSRF protection. The frontend first requests a CSRF token and sends it with subsequent protected requests.
-- Refresh tokens are stored in an HttpOnly cookie; access tokens are held in frontend application memory and sent as Bearer tokens. Refresh attempts are coalesced, and failed refreshes clear the local authenticated state.
-- Passwords and verification codes are stored as bcrypt hashes. Verification codes are six digits and are single-use, time-limited, and attempt-limited.
-- Authentication throttling is stored in MongoDB using hashed client identifiers and expiring records.
-- In production, set `DJANGO_DEBUG=false`, use secure secret values, set correct `DJANGO_ALLOWED_HOSTS` and exact CORS origins, and configure HTTPS and cookie behavior for the deployment's frontend/backend origins. Do not deploy the example secrets or local settings.
-- SMTP must be configured for account registration to deliver verification emails. A missing or unreachable SMTP service is reported as an error; the application does not provide a fake verification code.
-
-## API overview
-
-All routes below are served by Django under `http://localhost:8000`. JSON endpoints use the `/api/` prefix unless noted.
-
-### Health and documentation
-
-| Method | Route | Description |
-| --- | --- | --- |
-| `GET` | `/api/health/` | Checks MongoDB connectivity and reports Cloudinary configuration status. |
-| `GET` | `/api/schema/` | OpenAPI schema. |
-| `GET` | `/api/docs/` | Swagger UI. |
-| `GET` | `/api/redoc/` | ReDoc. |
-
-The health endpoint returns HTTP 503 when MongoDB is missing or unavailable. Documentation generation does not require a live MongoDB connection.
-
-### Accounts and authentication
-
-| Method | Route | Description |
-| --- | --- | --- |
-| `GET` | `/api/auth/csrf/` | Issues/returns the CSRF token and cookie. |
-| `POST` | `/api/auth/register/` | Creates an unverified account and sends a six-digit verification email. |
-| `POST` | `/api/auth/verify-email/` | Verifies the email using the code. |
-| `POST` | `/api/auth/resend-verification/` | Requests another code, subject to eligibility and cooldown. |
-| `POST` | `/api/auth/login/` | Signs in a verified account and sets the refresh cookie. |
-| `POST` | `/api/auth/refresh/` | Rotates the refresh token and returns a new access token. |
-| `POST` | `/api/auth/logout/` | Revokes the current refresh session and clears its cookie. |
-| `GET` | `/api/auth/me/` | Retrieves the current user's profile; requires a Bearer access token. |
-| `PATCH` | `/api/auth/me/` | Updates permitted profile fields; requires authentication and CSRF. |
-| `POST` | `/api/auth/change-password/` | Changes the password and revokes active refresh sessions. |
-
-Login returns an access token in the response and sets the refresh token in an HttpOnly cookie scoped to `/api/auth/`. The frontend sends the access token using `Authorization: Bearer <token>`. Refresh-token rotation detects reuse of an old token and revokes its token family. Access tokens remain valid until they expire.
-
-Default MongoDB-backed throttle rates are:
-
-| Operation | Default rate |
-| --- | --- |
-| Registration | 5/hour |
-| Login | 10/minute |
-| Email verification | 10/hour |
-| Verification resend | 3/hour |
-| Refresh | 30/hour |
-
-### Public movie and chapter browsing
-
-| Method | Route | Description |
-| --- | --- | --- |
-| `GET` | `/api/movies/` | Lists published movies. |
-| `GET` | `/api/movies/featured/` | Lists featured published movies. |
-| `GET` | `/api/movies/genres/` | Lists genres from published movies. |
-| `GET` | `/api/movies/{slug}/` | Retrieves a published movie. |
-| `GET` | `/api/movies/{movie_slug}/chapters/` | Lists published chapters for a published movie. |
-| `GET` | `/api/movies/{movie_slug}/chapters/{chapter_slug}/` | Retrieves a published chapter. |
-
-Movie list endpoints accept the following query parameters where relevant:
-
-| Parameter | Description |
-| --- | --- |
-| `search` | Text search against movie titles. |
-| `genre` | Filter by genre. |
-| `release_year` | Filter by release year. |
-| `language` | Filter by original language. |
-| `content_rating` | Filter by content rating. |
-| `sort` | One of `-release_year`, `release_year`, `title`, `-title`, `-created_at`, or `created_at`. |
-| `page` | Page number; defaults to 1. |
-| `page_size` | Results per page, from 1 to 100; defaults to 20. |
-
-Public movie results include pagination metadata: `results`, `page`, `page_size`, `total`, and `pages`.
-
-### Administrator movie and chapter management
-
-Administrator routes require a valid access token for a user whose role is `admin`.
-
-| Method | Route | Description |
-| --- | --- | --- |
-| `GET`, `POST` | `/api/admin/movies/` | List all movies or create one. |
-| `GET`, `PUT`, `PATCH`, `DELETE` | `/api/admin/movies/{movie_id}/` | Retrieve, replace, update, or delete a movie. Deletion requires the movie slug as confirmation. |
-| `GET`, `POST` | `/api/admin/movies/{movie_id}/chapters/` | List all chapters, including drafts, or append a chapter. |
-| `GET`, `PUT`, `PATCH`, `DELETE` | `/api/admin/movies/{movie_id}/chapters/{chapter_id}/` | Retrieve, replace, update, or delete a chapter. |
-| `POST` | `/api/admin/movies/{movie_id}/chapters/reorder/` | Reorder all chapters by submitting each chapter ID exactly once. |
-
-Movie and chapter records support draft/published status. Public endpoints return only published items. New chapters are appended; use the reorder endpoint to change their order. Deleting a chapter compacts the remaining chapter numbers.
-
-## Frontend routes
-
-| Route | Page |
-| --- | --- |
-| `/` | Movie catalog |
-| `/movies/:slug` | Movie detail and published chapters |
-| `/register` | Account registration |
-| `/verify-email` | Email verification |
-| `/login` | Sign in |
-| `/profile` | Authenticated user profile |
-| `/admin/movies` | Administrator movie and chapter management |
-
-The profile route requires authentication. The administrator route additionally requires the `admin` role.
-
-## Testing and validation
-
-Run backend checks from `backend/`:
+Start the API from `backend/`:
 
 ```powershell
 python manage.py check
-python manage.py test accounts
+python manage.py runserver 127.0.0.1:8000
+```
+
+Create a new verified administrator with the interactive prompt:
+
+```powershell
+python manage.py create_admin
+```
+
+Promoting an existing account requires an explicit command and confirmation:
+
+```powershell
+python manage.py create_admin --promote-email admin@example.com
+```
+
+The account must already be active and verified. The command does not print passwords.
+
+### Frontend
+
+In a second terminal, from the repository root:
+
+```powershell
+if (-not (Test-Path frontend/.env)) { Copy-Item frontend/.env.example frontend/.env }
+Set-Location frontend
+npm ci
+npm run dev
+```
+
+`frontend/.env` uses `VITE_API_BASE_URL=http://localhost:8000` (backend origin only; the API client adds `/api`). Vite serves the app at `http://127.0.0.1:5174/`. Restart Vite after changing its `.env`.
+
+## Media uploads and playback
+
+Sign in as an administrator, open **Studio → Movies** or **Studio → Series**, create or select content, and use its media controls to upload a poster or video. Movie chapters and series episodes have their own media controls. Content must be published, along with its required parent content, to be publicly playable.
+
+Uploads are validated server-side by file type, signature, and size. Videos and posters are sent to Cloudinary; MongoDB stores media metadata and the content association. The custom player offers Auto, 360p, 480p, 720p, and 1080p delivery choices for Cloudinary video URLs. Cloudinary creates resized deliveries server-side; a selected maximum size cannot increase the resolution of a smaller original. Actual playback and transformed delivery require valid Cloudinary credentials and a live Cloudinary account.
+
+## API overview
+
+All API routes use the `/api/` prefix. Swagger UI and ReDoc are available at `/api/docs/` and `/api/redoc/`; the OpenAPI schema is at `/api/schema/`.
+
+| API area | Base path | Purpose |
+| --- | --- | --- |
+| Health | `/api/health/` | MongoDB status and Cloudinary configuration status. |
+| Authentication | `/api/auth/` | Registration, verification, login, refresh, logout, and profiles. |
+| Movies/chapters | `/api/movies/`, `/api/admin/movies/` | Public catalogs and admin movie/chapter management. |
+| Series | `/api/series/`, `/api/admin/series/` | Public series, seasons, episodes, specials, and admin management. |
+| Discovery | `/api/discover/` | Search and filters, featured and latest content. |
+| Favorites | `/api/favorites/` | Signed-in user's favorites. |
+| Watch history | `/api/watch-history/` | Signed-in user's progress and history. |
+| Reviews | `/api/reviews/` | Public review summaries and authenticated review management. |
+| Media | `/api/admin/media/` | Admin upload, association lookup, and media library. |
+| Analytics | `/api/admin/analytics/` | Admin dashboard counts and recent activity. |
+
+Administrative APIs enforce authorization on the backend. Frontend route guards only improve navigation and are not a security boundary. Public content APIs filter out drafts and enforce published parent visibility.
+
+## Validation
+
+From `backend/`:
+
+```powershell
+python manage.py check
 python manage.py test
 python manage.py spectacular --validate
 ```
 
-Build the frontend from `frontend/`:
+From `frontend/`:
 
 ```powershell
+npm test
 npm run build
 ```
 
-The Django tests cover account security primitives and workflows, throttling, CSRF, token behavior, and OpenAPI documentation. They do not replace end-to-end testing against your own MongoDB Atlas cluster and SMTP provider. For live registration testing, use a mailbox you control and verify that the email is actually delivered.
+Automated checks do not replace testing against the deployment's own MongoDB replica set, SMTP provider, Cloudinary account, and browser/device combination.
 
-## Troubleshooting
+## Security and deployment
 
-### `database_unavailable` or MongoDB connection errors
+- Never commit `.env` files or put private credentials in `VITE_*` variables. Use the `.env.example` files as templates.
+- Use production-only random secrets, `DJANGO_DEBUG=false`, correct hosts, exact CORS/CSRF origins, and HTTPS.
+- Keep Cloudinary credentials server-side. Configure SMTP for real email verification.
+- Do not expose drafts; the API performs publication checks independently of frontend visibility.
+- Do not use a standalone MongoDB server for operations that require multi-document transactions.
 
-1. Confirm `MONGODB_URI` and `MONGODB_DATABASE` are set in `backend/.env`.
-2. Verify the Atlas IP access list includes the backend machine or deployment egress IP.
-3. Check database-user credentials and access privileges.
-4. Confirm DNS/network access to the Atlas cluster and that the deployment supports transactions.
-5. Run `python manage.py check` and request `/api/health/` for the sanitized connection status.
-
-Never paste the MongoDB URI, password, or other credentials into issue reports or chat logs.
-
-### Verification emails do not arrive
-
-Check `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `SMTP_USE_SSL`, and `DEFAULT_FROM_EMAIL` in `backend/.env`. Confirm the provider accepts the configured sender and credentials. Registration will not pretend delivery succeeded when SMTP is unavailable.
-
-### Browser reports CORS or CSRF errors
-
-Confirm the frontend is opened at the configured origin (by default `http://127.0.0.1:5174`) and that this exact origin appears in `DJANGO_CORS_ALLOWED_ORIGINS`. The frontend must call the backend at `http://localhost:8000`; restart Vite after changing its `.env` file.
-
-## License
-
-No license is currently specified in this repository. Add a license file before distributing or reusing the project if a particular license is intended.
+No license is currently specified in this repository.

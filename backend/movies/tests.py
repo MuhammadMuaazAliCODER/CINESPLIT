@@ -127,10 +127,11 @@ class MovieMongoServiceTests(SimpleTestCase):
             update_movie(str(movie_id), {"slug": "other-film"})
         collection.find_one_and_update.assert_not_called()
 
+    @patch("media.services.remove_content_media")
     @patch("movies.services.get_database")
     @patch("movies.services.get_chapter_collection")
     @patch("movies.services.get_movie_collection")
-    def test_delete_requires_matching_slug_confirmation_and_preserves_movies_with_chapters(self, get_collection, get_chapters, get_database):
+    def test_delete_requires_matching_slug_confirmation_and_preserves_movies_with_chapters(self, get_collection, get_chapters, get_database, remove_media):
         movie_id = ObjectId()
         collection = MagicMock()
         collection.find_one.return_value = {"_id": movie_id, "slug": "the-long-night"}
@@ -188,7 +189,7 @@ class MovieMongoServiceTests(SimpleTestCase):
         indexes = {call.kwargs["name"]: call for call in collection.create_index.call_args_list}
         self.assertEqual(set(indexes), {
             "movies_slug_unique", "movies_title_text", "movies_genres", "movies_release_year",
-            "movies_language", "movies_content_rating", "movies_status", "movies_featured",
+            "movies_language", "movies_content_rating", "movies_status", "movies_featured", "movies_created_at",
         })
         self.assertTrue(indexes["movies_slug_unique"].kwargs["unique"])
 
@@ -285,10 +286,11 @@ class ChapterMongoServiceTests(SimpleTestCase):
         updates = [call.args[1]["$set"]["chapter_number"] for call in chapters.update_one.call_args_list]
         self.assertEqual(updates[-2:], [1, 2])
 
+    @patch("media.services.remove_content_media")
     @patch("movies.chapter_services.get_database")
     @patch("movies.chapter_services.get_chapter_collection")
     @patch("movies.chapter_services.get_movie_collection")
-    def test_update_and_delete_require_chapter_movie_relationship_and_delete_reports_renumbering(self, get_movies, get_chapters, get_database):
+    def test_update_and_delete_require_chapter_movie_relationship_and_delete_reports_renumbering(self, get_movies, get_chapters, get_database, remove_media):
         movie_id, chapter_id = ObjectId(), ObjectId()
         _, chapters, _ = self._transaction_setup(movie_id, get_database, get_movies, get_chapters)
         existing = {"_id": chapter_id, "movie_id": movie_id, "title": "Arrival", "slug": "arrival", "chapter_number": 1}

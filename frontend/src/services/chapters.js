@@ -4,6 +4,10 @@ export function getPublicChapters(movieSlug, config = {}) {
   return api.get(`/movies/${encodeURIComponent(movieSlug)}/chapters/`, config)
 }
 
+export function getPublicChapter(movieSlug, chapterSlug, config = {}) {
+  return api.get(`/movies/${encodeURIComponent(movieSlug)}/chapters/${encodeURIComponent(chapterSlug)}/`, config)
+}
+
 export function getAdminChapters(movieId, config = {}) {
   return api.get(`/admin/movies/${encodeURIComponent(movieId)}/chapters/`, config)
 }

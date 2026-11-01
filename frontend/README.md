@@ -1,71 +1,70 @@
 # CineSplit Frontend
 
-The frontend is a React single-page application built with Vite. It uses React Router for client-side routes, Axios for API requests, and Font Awesome for icons. The interface covers the movie catalogue and details, account flows, profiles, and administrator movie/chapter management.
+The frontend is a React single-page application built with Vite and React Router. It uses a shared Axios client, the existing authentication context, Font Awesome icons, and the app's responsive dark streaming-catalog design.
 
-## Current project status
+## Features
 
-- The app is configured for Vite on `http://localhost:5174` (`strictPort` is enabled).
-- The centralized Axios client reads `VITE_API_BASE_URL`, defaults to `http://localhost:8000`, and appends `/api` once.
-- Browser requests use cookies and CSRF headers; the shared client also adds JWT access tokens and handles access-token refresh/retry behavior.
-- The public movie detail page lists published chapters and shows an empty state when none are published. It does not offer playback.
-- The admin movie editor includes chapter create/edit/delete, publish/unpublish, and reorder controls.
-- Administrator authorization is enforced by the backend. Frontend route guards are only a navigation aid.
-- Video uploads/playback, favorites, watch history, reviews, ratings, and later milestone features are not implemented here.
+- Movie and series catalogs, details, discovery search, featured shelves, and release-year sorting.
+- Movie chapter navigation and series season, episode, and special navigation.
+- Sign-up, email verification, sign-in, profile, and sign-out flows.
+- Favorites, ratings and reviews, watch history, continue watching, and playback resume for signed-in users.
+- Admin Studio pages for movies/chapters, series/seasons/episodes/specials, media uploads/library, and analytics.
+- Custom video player with seek, play/pause, ±10-second skip, volume, fullscreen, playback speed, and Cloudinary quality choices.
 
-## Requirements and setup
+## Setup
 
-Use a current Node.js version with npm. From `frontend/`, install the locked dependencies and start Vite:
+Use Node.js 18+ and npm. From `frontend/`:
 
 ```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 npm ci
 npm run dev
 ```
 
-The development server runs at `http://localhost:5174`. The Django API should be available at `http://localhost:8000`.
-
-If `frontend/.env` does not exist, create it from the example. Do not overwrite an existing `.env`:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-The current example contains:
+The example environment is:
 
 ```dotenv
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-Vite only exposes variables prefixed with `VITE_`. Set this value to the backend origin (without adding `/api`; the shared client adds that segment). Restart the Vite development server after changing environment files. Do not point this variable at the frontend port or port 5000 unless the backend architecture is intentionally changed.
+Set this to the backend origin only. `src/services/api.js` appends `/api`, sends cookies and CSRF headers, attaches the in-memory JWT access token, and coalesces concurrent token-refresh attempts. Do not add credentials to frontend environment variables: Vite exposes `VITE_*` values to browser code. Restart Vite after changing `.env`.
+
+The development server binds to `127.0.0.1:5174` (strict port).
 
 ## Routes
 
-| Browser route | Page | Access |
+| Route | Page | Access |
 | --- | --- | --- |
-| `/` | Public movie catalogue | Public |
-| `/movies/:slug` | Public movie details and published chapters | Public |
-| `/register` | Registration | Public |
-| `/login` | Sign in | Public |
-| `/verify-email` | Email verification | Public |
-| `/profile` | Account profile | Signed in |
-| `/admin/movies` | Movie and chapter management | Administrator |
+| `/` | Movie catalog, featured/latest shelves, continue-watching shelf | Public; shelf personalized when signed in |
+| `/discover` | Search and filter movies/series | Public |
+| `/series` | Series catalog | Public |
+| `/series/:slug` | Series details, seasons, episodes and specials | Public; published content only |
+| `/series/:slug/episodes/:episodeSlug` | Episode/special playback, favorites and reviews | Public page; engagement requires sign-in |
+| `/movies/:slug` | Movie details, chapters, playback and reviews | Public page; engagement requires sign-in |
+| `/movies/:slug/chapters/:chapterSlug` | Chapter playback, favorites and reviews | Public page; engagement requires sign-in |
+| `/register`, `/verify-email`, `/login` | Account flows | Public |
+| `/profile`, `/favorites`, `/watch-history`, `/continue-watching` | Account and personal library | Signed in |
+| `/admin` | Analytics dashboard | Administrator |
+| `/admin/movies`, `/admin/series`, `/admin/media` | Content and media administration | Administrator |
 
-Unknown browser paths render the app's status/not-found page.
+Backend permissions remain authoritative; hiding a frontend route does not grant or enforce API access.
 
-## API client and services
+## Media player
 
-`src/services/api.js` owns the shared Axios instance. It combines the configured backend origin with `/api`, sends cookies, preserves CSRF behavior, attaches the in-memory access token, and serializes refresh requests so concurrent 401 responses share one refresh attempt.
+The reusable player is `src/components/VideoPlayer.jsx`. It preserves playback progress, resumes saved positions for signed-in users, and saves progress periodically and on pause/end. Keyboard controls are Space (play/pause), Left/Right arrows (seek 10 seconds), and M (mute). The settings menu includes playback speed and, for Cloudinary video delivery URLs, Auto/360p/480p/720p/1080p choices.
 
-- `src/services/auth.js`: authentication, CSRF, profile, and account requests.
-- `src/services/movies.js`: public catalogue and administrator movie requests.
-- `src/services/chapters.js`: public chapter listing and administrator chapter operations.
+Quality choices request Cloudinary server-side resized variants with automatic quality encoding. They are maximum delivery widths, not guarantees that an uploaded source contains that many pixels. Valid Cloudinary configuration and network access are needed to play Cloudinary media; transformed playback has not been verified against every account/browser configuration.
 
-Services use relative `/movies/...` or `/admin/movies/...` paths against the shared client. Do not create a second Axios instance or add `/api` to `VITE_API_BASE_URL` without updating the client construction.
+## API services
 
-## Movie and chapter behavior
+- `src/services/api.js`: shared Axios setup, CSRF, cookies and JWT refresh.
+- `src/services/auth.js`: registration, verification, authentication and profiles.
+- `src/services/movies.js`, `src/services/chapters.js`: movie and chapter APIs.
+- `src/services/series.js`: series, season, episode and special APIs.
+- `src/services/media.js`: media administration.
+- `src/services/engagement.js`: discovery, favorites, watch progress, reviews and analytics.
 
-The catalogue requests published movies from the backend and provides search, filters, sort, pagination, loading, empty, and error states. Movie detail requests the movie and its published chapters. Chapter cards show chapter number, title, description, duration in minutes, and the availability label.
-
-From the admin page, select a movie to edit it and open its chapter manager. Create appends a chapter to the current order. The up/down controls change the local order; **Save order** submits every chapter ID so the backend can validate and atomically store the order. Deleting a chapter requires browser confirmation; remaining chapters are renumbered by the backend. Draft chapters are visible only in the administrator interface.
+Keep requests in these service modules rather than creating independent Axios clients.
 
 ## Scripts
 
@@ -73,23 +72,21 @@ Run from `frontend/`:
 
 ```powershell
 npm run dev
-npm test -- --test-reporter=spec
+npm test
 npm run build
 npm run preview
 ```
 
-The production build is written to `dist/`, which is generated output and should not be committed. The Node test suite checks API URLs/credentials and important catalogue, detail, admin, and chapter UI behavior. The Vite test harness may print a non-fatal warning if its configured HMR socket port `24678` is already occupied; that warning did not prevent the current tests from passing.
-
-Milestone 4 verification completed with all 8 frontend tests passing and the production build succeeding.
+The build output in `dist/` is generated. Tests use Node's built-in test runner (`node --test`).
 
 ## Source map
 
-- `src/App.jsx`: route table.
-- `src/layouts/`: shared page shell and navigation.
-- `src/pages/`: route-level screens.
-- `src/components/`: reusable forms, cards, guards, and chapter administration.
-- `src/services/`: shared API client and endpoint functions.
-- `src/styles/index.css`: application styles and responsive layouts.
-- `tests/movies.test.mjs`: frontend API and movie/chapter checks.
+- `src/App.jsx`: routes and access gates.
+- `src/layouts/`: shared site layout and navigation.
+- `src/pages/`: catalog, detail, account, personal library, and Studio pages.
+- `src/components/`: cards, uploaders, reviews, engagement controls, and video player.
+- `src/services/`: shared API and endpoint functions.
+- `src/styles/index.css`: global styles and responsive layouts.
+- `tests/`: frontend API and page behavior checks.
 
-The frontend `.env` may contain local configuration. Keep it out of source control and use `.env.example` as the safe template.
+Keep `frontend/.env` private and use `.env.example` as the safe template.

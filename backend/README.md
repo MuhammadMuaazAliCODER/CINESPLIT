@@ -1,132 +1,121 @@
 # CineSplit Backend
 
-The backend is a Django REST Framework API. Django and DRF handle routing, validation, authentication integration, permissions, and schema generation. Application data is stored in MongoDB through PyMongo; the Django SQLite database is only configured for framework support and is not the movie or account datastore.
+The backend is a Django 5.2 and Django REST Framework API. PyMongo is the persistence layer for all CineSplit application data; SQLite is configured only for Django framework functionality. The project retains its custom MongoDB-backed user model, JWT authentication, permissions, and throttling.
 
-## Current project status
+## Features
 
-- Milestones 1–4 are represented in the current codebase: authentication and profiles, movie catalogue and administration, and movie chapters.
-- Movie documents live in `movies`; chapter documents live in the dedicated `movie_chapters` collection.
-- Movie and chapter identifiers use MongoDB ObjectIds. Movie and chapter public detail routes use slugs.
-- Chapter writes, deletions, and full-list reorders run in MongoDB transactions. The configured MongoDB Atlas deployment was verified as a replica set with logical sessions.
-- Public chapter APIs expose published chapters only, and only when the parent movie is published.
-- Administrator permissions are checked by the backend; frontend role checks are not treated as authorization.
-- Video storage, playback, streaming, uploads, and later milestone features are not implemented.
+- Registration, verification email, sign-in, refresh-token rotation, profiles, and password changes.
+- Movie/chapter and series/season/episode/special CRUD, publishing, and ordering.
+- Public discovery, favorites, watch progress/history, and ratings/reviews.
+- Administrator-only analytics, Cloudinary media uploads, association lookup, and media library.
+- MongoDB indexes for slugs, parent relationships, ordering, user-scoped engagement, and media metadata.
 
-## Requirements and setup
+## Setup and configuration
 
-Requirements are listed in `requirements.txt`. Use a supported 64-bit Windows Python installation that has compatible wheels for the dependencies. The repository's current root `.venv` was created with Python 3.14 MinGW; `rpds-py`, a transitive schema dependency, could not build in that environment. Backend verification was completed with the installed Python 3.13 runtime.
-
-From the repository root, make a local backend environment file only if one does not already exist. Do not overwrite an existing `.env`, because it may contain real credentials:
+Use Python 3.10+ compatible with the pinned ranges in `requirements.txt`. From the repository root, create a local file only if it does not already exist:
 
 ```powershell
-Copy-Item backend/.env.example backend/.env
+if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
+Set-Location backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 ```
 
-Edit `backend/.env` and configure at least:
+Set these in `backend/.env`:
 
-- `DJANGO_SECRET_KEY` and `JWT_SECRET_KEY` with separate random secrets.
-- `MONGODB_URI` and `MONGODB_DATABASE` for MongoDB Atlas or another replica-set deployment.
-- `DJANGO_DEBUG` and allowed hosts/origins appropriate to the environment.
-- SMTP settings if email verification messages should be sent.
-- Cloudinary credentials only where the existing integration requires them.
+- `DJANGO_SECRET_KEY` and `JWT_SECRET_KEY`: separate random values.
+- `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`: debug setting and allowed hosts.
+- `DJANGO_CORS_ALLOWED_ORIGINS`: exact browser origins; settings also use this list for CSRF trusted origins.
+- `MONGODB_URI`, `MONGODB_DATABASE`: Mongo connection and database name.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_USE_TLS`, `SMTP_USE_SSL`, `DEFAULT_FROM_EMAIL`: verification email delivery.
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`: all three are required for upload configuration. They are read only by the backend.
 
-From `backend/`, install dependencies into the selected Python environment and start Django:
+Settings load `backend/.env` using `python-dotenv`. Existing non-empty process environment values retain precedence; blank inherited Cloudinary variables are filled from non-empty values in `.env`. Missing Cloudinary configuration produces a controlled HTTP 503 on upload, with missing variable names (never values) in the response. The Cloudinary SDK is declared in `requirements.txt`.
+
+Start Django from `backend/`:
 
 ```powershell
-python -m pip install -r requirements.txt
 python manage.py check
 python manage.py runserver 127.0.0.1:8000
 ```
 
-The frontend's example environment points to `http://localhost:8000`. Keep the backend origin and the frontend CORS/CSRF origin settings aligned when changing either port.
+For MongoDB transactions, use a replica set or compatible sharded cluster; standalone MongoDB does not support the multi-document transactions used by chapter and series content operations.
 
-## Main routes
+## Administrator provisioning
 
-All API routes are under `/api/`.
+Create a verified admin with an interactive password prompt:
 
-### Health and documentation
+```powershell
+python manage.py create_admin
+```
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/health/` | Service and dependency health status |
-| GET | `/api/schema/` | OpenAPI schema |
-| GET | `/api/docs/` | Swagger UI |
-| GET | `/api/redoc/` | ReDoc UI |
+To promote an existing active, verified account, explicitly invoke:
 
-### Authentication and profiles
+```powershell
+python manage.py create_admin --promote-email admin@example.com
+```
 
-The authentication routes are mounted at `/api/auth/`:
+Promotion requires typing `PROMOTE`. Passwords are never printed. The command uses the application's MongoDB user collection and existing hashing implementation.
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/csrf/` | Obtain the CSRF cookie/token used by browser requests |
-| POST | `/register/` | Register an account |
-| POST | `/verify-email/` | Verify an email address |
-| POST | `/resend-verification/` | Resend a verification message |
-| POST | `/login/` | Authenticate and receive session/token data |
-| POST | `/refresh/` | Refresh an access token using the refresh cookie |
-| POST | `/logout/` | Log out and revoke/clear refresh credentials |
-| GET/PATCH | `/me/` | Read or update the signed-in profile |
-| POST | `/change-password/` | Change the signed-in user's password |
+## API routes
 
-Authentication uses the custom Mongo JWT authentication and Mongo-backed throttling defined in the `accounts` app. Browser requests retain CSRF protection and cookie credentials.
+All routes below are prefixed by `/api`. OpenAPI is at `/schema/`, Swagger UI at `/docs/`, and ReDoc at `/redoc/`.
 
-### Public movies and chapters
+| Area | Routes and behavior |
+| --- | --- |
+| Health | `GET /health/` reports MongoDB availability and Cloudinary configuration. |
+| Accounts | `/auth/`: CSRF, register, verify/resend, login, refresh, logout, profile, and password change. |
+| Movies | `/movies/`: published list, featured list, genres, and slug detail. Supports validated search/filter/sort/pagination. |
+| Chapters | `/movies/{movie_slug}/chapters/` and detail; published items require a published parent movie. Admin CRUD and reorder are under `/admin/movies/`. |
+| Series | `/series/`: published lists, featured/genres, slug detail, seasons, regular episodes, specials, and episode detail. Admin operations are under `/admin/series/`. |
+| Discovery | `GET /discover/`, `/discover/featured/`, `/discover/latest/` for published movie and series discovery. |
+| Favorites | `/favorites/`: authenticated list/add/state/remove. Records are scoped to the authenticated user. |
+| Watch history | `/watch-history/`: authenticated progress save/list, item state, and removal. |
+| Reviews | `/reviews/{content_type}/{content_id}/`: public summary/list, authenticated create, and owner-only update/delete. |
+| Media | `/admin/media/`: admin library; `/admin/media/{content_type}/{content_id}/` association lookup; add `/video/` or `/poster/` for multipart upload. Supported content types are movie, chapter, episode. |
+| Analytics | `GET /admin/analytics/` requires administrator authorization. |
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/movies/` | Browse published movies; supports validated filters and pagination |
-| GET | `/api/movies/featured/` | Browse featured published movies |
-| GET | `/api/movies/genres/` | List genres from published movies |
-| GET | `/api/movies/{movie_slug}/` | Retrieve a published movie |
-| GET | `/api/movies/{movie_slug}/chapters/` | List published chapters in chapter-number order |
-| GET | `/api/movies/{movie_slug}/chapters/{chapter_slug}/` | Retrieve one published chapter |
+All admin endpoints enforce permissions in Django. Public content serializers and services filter drafts and unpublished parent content. Object IDs and parent relationships are validated in backend services.
 
-Draft movies and chapters are not exposed publicly. The individual chapter endpoint also requires a published parent movie.
+## Media upload and delivery
 
-### Administrator movie and chapter management
+The upload service validates role, declared content type, file signature, and size before calling Cloudinary. Videos are uploaded as Cloudinary video resources; posters use image resources. The backend stores the Cloudinary public ID, secure URL, format, duration, uploader and association in MongoDB and embeds the permitted metadata in published content responses. Client input does not select arbitrary Cloudinary public IDs.
 
-All routes below require a signed-in administrator as determined by the backend:
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET/POST | `/api/admin/movies/` | List or create movies |
-| GET/PUT/PATCH/DELETE | `/api/admin/movies/{movie_id}/` | Read, replace, update, or delete a movie |
-| GET/POST | `/api/admin/movies/{movie_id}/chapters/` | List all chapters, including drafts, or append a chapter |
-| GET/PUT/PATCH/DELETE | `/api/admin/movies/{movie_id}/chapters/{chapter_id}/` | Read, replace, update, or delete a chapter |
-| POST | `/api/admin/movies/{movie_id}/chapters/reorder/` | Atomically reorder the complete chapter list |
-
-Chapter numbering starts at 1. Creation appends at the end. Chapter numbers cannot be changed through ordinary chapter updates: use the reorder endpoint with every chapter ID for that movie exactly once. Deleting a chapter compacts the remaining numbers, and its response indicates that renumbering occurred. A movie cannot be deleted while it has chapters; remove its chapters first.
+When replacing an asset, the new upload is associated before the prior Cloudinary asset is destroyed. Failed remote cleanup is recorded in `media_orphans` for visibility in the admin media library. Content deletion detaches associated media metadata and queues remote cleanup failures. Cloudinary transformations used by the frontend player produce on-demand width-limited delivery URLs; actual transformation behavior depends on Cloudinary availability/account configuration.
 
 ## MongoDB collections and indexes
 
-`movies.mongo` initializes movie indexes when its collection is first requested. Chapter indexes are initialized by `get_chapter_collection()`:
+Index definitions are in the app `mongo.py` modules and are initialized when the relevant collection is accessed. Important constraints include:
 
-- Unique `movie_chapters_movie_number_unique` on `(movie_id, chapter_number)`.
-- Unique `movie_chapters_movie_slug_unique` on `(movie_id, slug)`.
-- `movie_chapters_movie_status_order` on `(movie_id, status, chapter_number)` for visibility and ordered listings.
+- Movies and series: unique global slug.
+- Chapters: unique `(movie_id, chapter_number)` and `(movie_id, slug)`.
+- Seasons: unique `(series_id, season_number)` and `(series_id, slug)`.
+- Episodes: partial unique indexes for regular episode number/slug scoped to season, and special number/slug scoped to series. The filters distinguish `type: regular` from `type: special`.
+- Favorites, progress and reviews: user/content unique indexes to prevent duplicates and isolate records.
+- Media: unique content/role association; orphan cleanup records have unique Cloudinary public IDs.
 
-The chapter collection was contacted during Milestone 4 verification and these three indexes were present. Avoid using standalone MongoDB for chapter mutation features because MongoDB multi-document transactions require a replica set or a compatible sharded cluster.
+Chapter and series create/update/delete/reorder operations use transactions to preserve parent revisions, ordering, and cascading deletions. MongoDB replica-set transaction support is required for these operations. Single-document favorites, progress, and reviews use MongoDB atomic operations and unique indexes rather than multi-document transactions. Cloudinary cleanup is an external operation and is handled with a durable orphan queue rather than being part of a MongoDB transaction.
 
-## Checks and tests
+## Validation
 
-Run from `backend/` using the Python environment that has `requirements.txt` installed:
+Run from `backend/`:
 
 ```powershell
 python manage.py check
-python manage.py test movies
 python manage.py test
 python manage.py spectacular --validate
 ```
 
-Milestone 4 verification completed with Django system checks passing, 27 movie tests passing, 51 total backend tests passing, and schema validation reporting zero errors. Schema generation currently emits a non-fatal status-enum naming collision warning; the generated schema resolves it automatically.
+Unit tests do not prove connectivity to a live MongoDB cluster, SMTP provider, or Cloudinary account. Verify those integrations in a safe environment before production use.
 
 ## Code map
 
-- `config/`: settings, MongoDB client, project URL configuration, WSGI/ASGI entry points.
-- `accounts/`: registration, email verification, login, JWTs, CSRF, profiles, permissions, and throttling.
-- `movies/`: movie services and APIs, chapter services and APIs, serializers, collection/index initialization, and tests.
-- `core/`: health endpoint.
-- `series/`, `media/`, `favorites/`, `watch_progress/`, `reviews/`, and `analytics/`: other app packages in the project; their inclusion does not imply that later milestones are complete.
+- `config/`: settings, Mongo client, Cloudinary configuration, routing.
+- `accounts/`: custom authentication, users, permissions, throttling and provisioning command.
+- `movies/`, `series/`: content services, serializers, views, indexes and tests.
+- `media/`: Cloudinary upload/association, cleanup and media library.
+- `favorites/`, `watch_progress/`, `reviews/`, `analytics/`: engagement and admin reporting APIs.
+- `core/`: health, shared content resolution, and discovery.
 
-Do not commit `.env` files. The committed `.env.example` files are templates and should contain no live credentials.
+Never commit `.env` files. Keep live credentials out of source control and API responses.

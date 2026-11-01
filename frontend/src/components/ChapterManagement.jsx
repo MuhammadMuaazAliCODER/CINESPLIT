@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowDown, faArrowUp, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons'
 import { createAdminChapter, deleteAdminChapter, getAdminChapters, reorderAdminChapters, updateAdminChapter } from '../services/chapters.js'
+import MediaUploader from './MediaUploader.jsx'
 
 const blank = { title: '', slug: '', description: '', duration: '', status: 'draft', is_free: false }
 const message = (error, fallback) => error.response?.data?.detail || Object.values(error.response?.data?.errors || {}).flat().join(' ') || fallback
@@ -75,7 +76,7 @@ export default function ChapterManagement({ movie }) {
     </form>
     <div className="chapter-admin-list-heading"><h3>Chapter order <span className="admin-count">{chapters.length}</span></h3>{chapters.length > 1 && <button className="quiet-button" type="button" onClick={() => void saveOrder()} disabled={saving}>Save order</button>}</div>
     {loading ? <p className="movie-state" role="status">Loading chapters…</p> : !chapters.length ? <p className="movie-state">No chapters yet. Add the first chapter above.</p> : <ol className="chapter-admin-list">{chapters.map((chapter, index) => <li className="chapter-admin-card" key={chapter.id}>
-      <div className="chapter-number">{index + 1}</div><div className="chapter-admin-copy"><strong>{chapter.title}</strong><p>{chapter.duration} min · {chapter.status} · {chapter.is_free ? 'Free' : 'Restricted'}</p>{chapter.description && <small>{chapter.description}</small>}</div>
+      <div className="chapter-number">{index + 1}</div><div className="chapter-admin-copy"><strong>{chapter.title}</strong><p>{chapter.duration} min · {chapter.status} · {chapter.is_free ? 'Free' : 'Restricted'}</p>{chapter.description && <small>{chapter.description}</small>}<MediaUploader contentType="chapter" contentId={chapter.id}/></div>
       <div className="chapter-admin-actions"><button className="icon-button" type="button" aria-label={`Move ${chapter.title} up`} disabled={!index} onClick={() => move(index, -1)}><FontAwesomeIcon icon={faArrowUp} aria-hidden="true" /></button><button className="icon-button" type="button" aria-label={`Move ${chapter.title} down`} disabled={index === chapters.length - 1} onClick={() => move(index, 1)}><FontAwesomeIcon icon={faArrowDown} aria-hidden="true" /></button><button className="icon-button" type="button" aria-label={`Edit ${chapter.title}`} onClick={() => edit(chapter)}><FontAwesomeIcon icon={faPen} aria-hidden="true" /></button><button className="icon-button" type="button" onClick={() => void publish(chapter)}>{chapter.status === 'published' ? 'Unpublish' : 'Publish'} {chapter.title}</button><button className="icon-button danger-icon" type="button" aria-label={`Delete ${chapter.title}`} onClick={() => void remove(chapter)}><FontAwesomeIcon icon={faTrash} aria-hidden="true" /></button></div>
     </li>)}</ol>}
   </section>

@@ -1,0 +1,16 @@
+import { useEffect, useRef, useState } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faArrowLeft, faArrowRight, faTv } from '@fortawesome/free-solid-svg-icons'
+import { Link } from 'react-router-dom'
+import { getSeries } from '../services/series.js'
+import { createRequestGuard } from '../features/requestGuard.js'
+import { nextPage, previousPage } from '../features/pagination.js'
+import FavoriteButton from '../components/FavoriteButton.jsx'
+
+export default function SeriesCatalogPage() {
+  const [data,setData]=useState({results:[],page:1,pages:0,total:0}); const [page,setPage]=useState(1); const [state,setState]=useState('loading'); const request=useRef(null)
+  if(!request.current)request.current=createRequestGuard()
+  useEffect(()=>{const token=request.current.begin();const c=new AbortController();setState('loading');getSeries({page,page_size:20},{signal:c.signal}).then(({data:value})=>{if(!request.current.isCurrent(token))return;setData(value);if(value.pages>0&&page>value.pages)setPage(value.pages);else setState('ready')}).catch(e=>{if(request.current.isCurrent(token)&&e.name!=='CanceledError')setState('error')});return()=>{c.abort();request.current.invalidate()}},[page])
+  const changePage=(value)=>setPage((current)=>value(current,data.pages))
+  return <section className="series-catalog" aria-labelledby="series-title"><div className="catalog-hero series-hero"><div><span className="eyebrow"><FontAwesomeIcon icon={faTv}/> CINESPLIT ORIGINALS</span><h1 id="series-title">Stories that<br/><span>stay with you.</span></h1><p>Discover a world of series, seasons, and stories to follow.</p></div></div><div className="catalog-results-heading"><h2>Series <span>{data.total ?? ''}</span></h2><span>Curated for your next watch</span></div>{state==='loading'?<p className="movie-state" role="status">Loading series…</p>:state==='error'?<p className="movie-state" role="alert">Series could not be loaded. Please try again.</p>:!data.results?.length?<p className="movie-state">No published series yet.</p>:<div className="series-grid">{data.results.map(item=><div className="series-card-wrap" key={item.id}><Link className="series-card" to={`/series/${encodeURIComponent(item.slug)}`}><div className="series-art">{item.poster_url?<img src={item.poster_url} alt={`${item.title} poster`} loading="lazy"/>:<span>{item.title}</span>}<span className="series-art-arrow"><FontAwesomeIcon icon={faArrowRight}/></span></div><div className="series-card-copy"><span className="eyebrow">{item.release_year} · {item.genres?.join(' / ')}</span><h3>{item.title}</h3><p>{item.short_description}</p></div></Link><FavoriteButton contentType="series" contentId={item.id} compact/></div>)}</div>}{state==='ready'&&data.pages>1&&<nav className="movie-pagination series-pagination" aria-label="Series pages"><button className="quiet-button" type="button" disabled={page<=1} onClick={()=>changePage(previousPage)}><FontAwesomeIcon icon={faArrowLeft}/> Previous</button><span>Page {data.page} of {data.pages}</span><button className="quiet-button" type="button" disabled={page>=data.pages} onClick={()=>changePage(nextPage)}>Next <FontAwesomeIcon icon={faArrowRight}/></button></nav>}</section>
+}

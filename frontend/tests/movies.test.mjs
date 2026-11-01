@@ -10,7 +10,7 @@ let movieApi
 let chapterApi
 
 before(async () => {
-  vite = await createServer({ configFile: 'vite.config.js', server: { middlewareMode: true, hmr: { port: 0 } }, appType: 'custom' })
+  vite = await createServer({ configFile: 'vite.config.js', server: { middlewareMode: true, hmr: false }, appType: 'custom' })
   api = (await vite.ssrLoadModule('/src/services/api.js')).default
   movieApi = await vite.ssrLoadModule('/src/services/movies.js')
   chapterApi = await vite.ssrLoadModule('/src/services/chapters.js')
